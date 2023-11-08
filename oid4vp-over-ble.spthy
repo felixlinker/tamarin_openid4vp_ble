@@ -1,7 +1,7 @@
 theory OpenID4VP_Over_BLE
 begin
 
-heuristic: o "./oracle.py"
+heuristic: O "./oracle.py"
 
 builtins: diffie-hellman, symmetric-encryption, signing
 
