@@ -12,53 +12,60 @@ rule VerifierSetup:
   -->
   [ !Verifier($V, ~vsk) ]
 
+rule VerifierLeak:
+  [ !Verifier($V, ~vsk) ]
+  --[ SomeCompromise()
+    , CompromisedVerifier($V) ]->
+  [ Out(~vsk) ]
+
 rule WalletSetup:
   [ Fr(~wsk) ]
-  -->
+  --[ HonestWalletKey(pk(~wsk)) ]->
   [ !Wallet($W, ~wsk) ]
 
-// TODO: We skip first two parts of connection establishment for now
+rule WalletLeak:
+  [ !Wallet($W, ~wsk) ]
+  --[ SomeCompromise()
+    , CompromisedWallet($W, pk(~wsk)) ]->
+  [ Out(~wsk) ]
 
 rule SCAN_RESP:
   [ Fr(~eph), !Verifier($V, vsk) ]
   -->
-  [ Out(<'resp', 'g'^~eph>), St_VerInit($V, ~eph) ]
+  [ Out(<'resp', 'g'^~eph>), !St_VerInit($V, ~eph) ]
 
 rule IDENTIFY_REQ:
   let sharedKey = kdf(verifierEPk^~eph, ~n)
   in
   [ In(<'resp', verifierEPk>), !Wallet($W, ~wsk), Fr(~n), Fr(~eph) ]
   -->
-  [ Out(<'identify_req', 'g'^~eph, ~n>), St_WalletRdy($W, sharedKey) ]
+  [ Out(<'identify_req', 'g'^~eph, ~n>), St_WalletRdy($W, 'g'^~eph, verifierEPk, sharedKey) ]
 
 rule OID4VP_REQ:
   let sharedKey = kdf(walletEPk^~eph, n)
-      // req = <'oid4vp_req', $V, h(sharedKey), ~nReq>
-      req = <'oid4vp_req', $V, ~nReq>
+      req = <'oid4vp_req', $V, h('g'^~eph), ~nReq>
   in
-  [ In(<'identify_req', walletEPk, n>), Fr(~nReq), St_VerInit($V, ~eph), !Verifier($V, ~vsk) ]
+  [ In(<'identify_req', walletEPk, n>), Fr(~nReq), !St_VerInit($V, ~eph), !Verifier($V, ~vsk) ]
   --[ InitVerifier($V, sharedKey, n) ]->
-  [ Out(senc(<req, sign(req, ~vsk)>, sharedKey)), St_VerRdy($V, sharedKey, ~nReq) ]
+  [ Out(senc(<req, sign(req, ~vsk)>, sharedKey)), St_VerRdy($V, walletEPk, sharedKey, ~nReq) ]
 
 rule OID4VP_RESP:
-  // TODO: I implicitly use AEAD here
-  let vc = <'vc', pk(~wsk), n, ~token>
-    // req = <'oid4vp_req', $V, h(sharedKey), n>
-    req = <'oid4vp_req', $V, n>
+  let vc = <'vc', pk(~wsk), h(<n, walletEPk>), ~token>
+    req = <'oid4vp_req', $V, h(verifierEPk), n>
   in
   [ !Verifier($V, ~vsk), !Wallet($W, ~wsk), Fr(~token)
-  , In(senc(<req, reqSig>, sharedKey)), St_WalletRdy($W, sharedKey) ]
-  --[ Secret(~token)
-    , SendVC($V, sharedKey, n, ~token)
+  , In(senc(<req, reqSig>, sharedKey)), St_WalletRdy($W, walletEPk, verifierEPk, sharedKey) ]
+  --[ SecretFor($V, ~token)
+    , SendVC($W, pk(~wsk), $V, sharedKey, n, ~token)
     , VerifiableCredential(vc)
     , Eq(verify(reqSig, req, pk(~vsk)), true) ]->
   [ Out(senc(<vc, sign(vc, ~wsk)>, sharedKey)) ]
 
 rule OID4VP_RECV:
-  let vc = <'vc', wpk, n, t>
+  let vc = <'vc', wpk, h(<n, walletEPk>), t>
   in
-  [ In(senc(<vc, vcSig>, sharedKey)), St_VerRdy($V, sharedKey, n) ]
-  --[ Success($V, sharedKey, n, t)
+  [ In(senc(<vc, vcSig>, sharedKey)), St_VerRdy($V, walletEPk, sharedKey, n) ]
+  --[ Success($V, sharedKey, wpk, n, t)
     , Eq(verify(vcSig, vc, wpk), true) ]->
   []
 
@@ -67,17 +74,29 @@ restriction Eq:
 
 lemma Exec:
   exists-trace
-  "Ex #x #y v k t n. SendVC(v, k, t, n) @ #x & Success(v, k, t, n) @ #y"
+  "Ex #x #y w wpk v k t n.
+        SendVC(w, wpk, v, k, n, t) @ #x
+      & Success(v, k, wpk, n, t) @ #y
+      & (not Ex #x. SomeCompromise() @ #x)"
 
 lemma Secrecy:
-  "All #t m. Secret(m) @ #t ==> not Ex #u. K(m) @ #u"
+  "All #t v m.
+        SecretFor(v, m) @ #t
+    ==>   (not Ex #u. K(m) @ #u)
+        | (Ex #u. CompromisedVerifier(v) @ #u)"
 
 lemma InjectiveAgreement:
-  "All v1 v2 k1 k2 n1 n2 token #t #u.
-          Success(v1, k1, n1, token) @ #t
-        & SendVC(v2, k2, n2, token) @ #u
-    ==>   v1 = v2 & k1 = k2 & n1 = n2
-        & ( All v3 k3 n3 #x. Success(v3, k3, n3, token) @ #x
-            ==> k1 = k3 & n1 = n3 & #t = #x)"
+  "All v shk wpk n token #t.
+          Success(v, shk, wpk, n, token) @ #t
+    ==>   (Ex w #x. SendVC(w, wpk, v, shk, n, token) @ #x
+            & ( All w2 wpk2 v2 shk2 token2 #x2.
+                  // For *injective* agreement, we fix the nonce, not the token.
+                  // Fixing the token is pointless, as it is freshly generated
+                  // in the rule that is annotated with SendVC.
+                  SendVC(w2, wpk2, v2, shk2, n, token2) @ #x2
+              ==> w = w2 & wpk = wpk2 & v = v2 & shk = shk2 & token = token2 & #x = #x2))
+        | (Ex #x. CompromisedVerifier(v) @ #x)
+        | (Ex w #x. CompromisedWallet(w, wpk) @ #x)
+        | (not Ex #x. HonestWalletKey(wpk) @ #x)"
 
 end

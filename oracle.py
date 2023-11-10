@@ -37,33 +37,43 @@ def matchAgainstList(priorityList, lines):
       pass
 
 KU_secretKeys = [
-  re.compile(r'\!KU\(.+inv'),
   re.compile(r'\!KU\( ~(eph|vsk|wsk|x)'),
   re.compile(r'\!KU\( [~\w\.\d]+\^.*~.*inv'),
   re.compile(r'\!KU\( [~\w\.\d]+\^.*inv'),
-  '!KU( kdf',
   re.compile(r'\!KU\( [~\w\.\d\']+\^\(~[\w\.\d]+\*~[\w\.\d]+\)'),
 ]
 
 match = None
 if argv[1] == 'InjectiveAgreement':
   match = matchAgainstList(KU_secretKeys + [
-    'senc',
+    re.compile(r'\!KU\( senc.+DH_neutral'),
+    re.compile(r'\!KU\( sign.+DH_neutral'),
+    'Success',
+    'SendVC',
+    '!Verifier',
+    'St_VerRdy',
+    'St_WalletRdy',
+    '!KU( ~token',
     'sign',
+    'senc',
   ], lines)
 elif argv[1] == 'Secrecy':
   match = matchAgainstList(KU_secretKeys + [
     '!KU( senc',
+    'St_WalletRdy',
+    '!KU( sign',
     '!KU( ~token )',
   ], lines)
-# elif argv[1] == 'Exec':
-#   match = matchAgainstList([
-#     'SendVC',
-#     'St_',
-#     'Success',
-#     'senc',
-#     'sign',
-#   ], lines)
+elif argv[1] == 'Exec':
+  match = matchAgainstList([
+    'Success',
+    'SendVC',
+    '!Verifier',
+    '!Wallet',
+    'St_',
+    '!KU( walletEPk',
+    '!KU( ~',
+  ], lines)
 
 if match is not None:
   print(match)
