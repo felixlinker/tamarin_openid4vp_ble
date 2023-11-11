@@ -13,7 +13,6 @@ equations:
 
 
 
-heuristic: O "./oracle.py"
 
 
 
