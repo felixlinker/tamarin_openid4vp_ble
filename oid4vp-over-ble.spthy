@@ -43,6 +43,8 @@ rule IDENTIFY_REQ:
 
 rule OID4VP_REQ:
   let sharedKey = kdf(walletEPk^~eph, n)
+      // NOTE: We deviate from the specification here and include a hash of the
+      // verifier's half-key.
       req = <'oid4vp_req', $V, h('g'^~eph), ~nReq>
   in
   [ In(<'identify_req', walletEPk, n>), Fr(~nReq), !St_VerInit($V, ~eph), !Verifier($V, ~vsk) ]
@@ -50,6 +52,8 @@ rule OID4VP_REQ:
   [ Out(senc(<req, sign(req, ~vsk)>, sharedKey)), St_VerRdy($V, walletEPk, sharedKey, ~nReq) ]
 
 rule OID4VP_RESP:
+  // NOTE: We deviate from the specification here and include a hash of the
+  // wallet's half-key.
   let vc = <'vc', pk(~wsk), h(<n, walletEPk>), ~token>
     req = <'oid4vp_req', $V, h(verifierEPk), n>
   in
