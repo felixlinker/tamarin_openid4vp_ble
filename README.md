@@ -7,6 +7,8 @@ In this README, we will stay brief and focus on the assumptions that we make in 
 
 ## Properties
 
+We argue that the spec should provide the following two properties.
+
 ### Secrecy
 
 > Whenever a wallet sends out a verifiable presentation, the adversary cannot obtain it, *unless* the receiving verifier is controlled by the adversary.
