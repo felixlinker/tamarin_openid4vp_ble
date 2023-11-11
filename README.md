@@ -64,7 +64,7 @@ This attack violates both secrecy and authentication.
 ## Verifying the Proofs
 
 To verify that the spec (with our proposed changes) indeed provides the security properties from above, you can verify our proofs.
-For that, must first [install Tamarin](https://tamarin-prover.github.io/manual/master/book/002_installation.html).
+For that, you must first [install Tamarin](https://tamarin-prover.github.io/manual/master/book/002_installation.html).
 
 After you have installed Tamarin, you can check the proofs provided in this repository by running:
 
