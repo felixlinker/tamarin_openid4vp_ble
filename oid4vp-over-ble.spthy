@@ -89,12 +89,12 @@ lemma InjectiveAgreement:
   "All v shk wpk n token #t.
           Success(v, shk, wpk, n, token) @ #t
     ==>   (Ex w #x. SendVC(w, wpk, v, shk, n, token) @ #x
-            & ( All w2 wpk2 v2 shk2 token2 #x2.
+            & ( All v2 shk2 wpk2 token2 #t2.
                   // For *injective* agreement, we fix the nonce, not the token.
                   // Fixing the token is pointless, as it is freshly generated
                   // in the rule that is annotated with SendVC.
-                  SendVC(w2, wpk2, v2, shk2, n, token2) @ #x2
-              ==> w = w2 & wpk = wpk2 & v = v2 & shk = shk2 & token = token2 & #x = #x2))
+                  Success(v2, shk2, wpk2, n, token2) @ #t2
+              ==> v = v2 & wpk = wpk2 & shk = shk2 & token = token2 & #t = #t2))
         | (Ex #x. CompromisedVerifier(v) @ #x)
         | (Ex w #x. CompromisedWallet(w, wpk) @ #x)
         | (not Ex #x. HonestWalletKey(wpk) @ #x)"
