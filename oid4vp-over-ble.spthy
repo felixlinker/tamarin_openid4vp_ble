@@ -95,7 +95,6 @@ lemma InjectiveAgreement:
                   // in the rule that is annotated with SendVC.
                   Success(v2, shk2, wpk2, n, token2) @ #t2
               ==> v = v2 & wpk = wpk2 & shk = shk2 & token = token2 & #t = #t2))
-        | (Ex #x. CompromisedVerifier(v) @ #x)
         | (Ex w #x. CompromisedWallet(w, wpk) @ #x)
         | (not Ex #x. HonestWalletKey(wpk) @ #x)"
 

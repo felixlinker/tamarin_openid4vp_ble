@@ -446,13 +446,12 @@ lemma InjectiveAgreement:
   all-traces
   "∀ v shk wpk n token #t.
     (Success( v, shk, wpk, n, token ) @ #t) ⇒
-    ((((∃ w #x.
-         (SendVC( w, wpk, v, shk, n, token ) @ #x) ∧
-         (∀ v2 shk2 wpk2 token2 #t2.
-           (Success( v2, shk2, wpk2, n, token2 ) @ #t2) ⇒
-           (((((v = v2) ∧ (wpk = wpk2)) ∧ (shk = shk2)) ∧ (token = token2)) ∧
-            (#t = #t2)))) ∨
-       (∃ #x. CompromisedVerifier( v ) @ #x)) ∨
+    (((∃ w #x.
+        (SendVC( w, wpk, v, shk, n, token ) @ #x) ∧
+        (∀ v2 shk2 wpk2 token2 #t2.
+          (Success( v2, shk2, wpk2, n, token2 ) @ #t2) ⇒
+          (((((v = v2) ∧ (wpk = wpk2)) ∧ (shk = shk2)) ∧ (token = token2)) ∧
+           (#t = #t2)))) ∨
       (∃ w #x. CompromisedWallet( w, wpk ) @ #x)) ∨
      (¬(∃ #x. HonestWalletKey( wpk ) @ #x)))"
 /*
@@ -471,7 +470,6 @@ guarded formula characterizing all counter-examples:
       (¬(shk = shk2)) ∨
       (¬(token = token2)) ∨
       (¬(#t = #t2)))) ∧
-  (∀ #x. (CompromisedVerifier( v ) @ #x) ⇒ ⊥) ∧
   (∀ w #x. (CompromisedWallet( w, wpk ) @ #x) ⇒ ⊥) ∧
   (∃ #x. (HonestWalletKey( wpk ) @ #x))"
 */
