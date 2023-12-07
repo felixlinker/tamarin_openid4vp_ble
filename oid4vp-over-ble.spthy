@@ -38,24 +38,25 @@ rule IDENTIFY_REQ:
   let sharedKey = kdf(verifierEPk^~eph, ~n)
   in
   [ In(<'resp', verifierEPk>), !Wallet($W, ~wsk), Fr(~n), Fr(~eph) ]
-  -->
+  --[ Neq(verifierEPk, DH_neutral) ]->
   [ Out(<'identify_req', 'g'^~eph, ~n>), St_WalletRdy($W, 'g'^~eph, verifierEPk, sharedKey) ]
 
 rule OID4VP_REQ:
   let sharedKey = kdf(walletEPk^~eph, n)
       // NOTE: We deviate from the specification here and include a hash of the
       // verifier's half-key.
-      req = <'oid4vp_req', $V, h('g'^~eph), ~nReq>
+      req = <'oid4vp_req', $V, h(sharedKey), ~nReq>
   in
   [ In(<'identify_req', walletEPk, n>), Fr(~nReq), !St_VerInit($V, ~eph), !Verifier($V, ~vsk) ]
-  --[ InitVerifier($V, sharedKey, n) ]->
+  --[ InitVerifier($V, sharedKey, n)
+    , Neq(walletEPk, DH_neutral) ]->
   [ Out(senc(<req, sign(req, ~vsk)>, sharedKey)), St_VerRdy($V, walletEPk, sharedKey, ~nReq) ]
 
 rule OID4VP_RESP:
   // NOTE: We deviate from the specification here and include a hash of the
   // wallet's half-key.
-  let vc = <'vc', pk(~wsk), h(<n, walletEPk>), ~token>
-    req = <'oid4vp_req', $V, h(verifierEPk), n>
+  let vc = <'vc', pk(~wsk), h(<n, sharedKey>), ~token>
+      req = <'oid4vp_req', $V, h(sharedKey), n>
   in
   [ !Verifier($V, ~vsk), !Wallet($W, ~wsk), Fr(~token)
   , In(senc(<req, reqSig>, sharedKey)), St_WalletRdy($W, walletEPk, verifierEPk, sharedKey) ]
@@ -66,7 +67,7 @@ rule OID4VP_RESP:
   [ Out(senc(<vc, sign(vc, ~wsk)>, sharedKey)) ]
 
 rule OID4VP_RECV:
-  let vc = <'vc', wpk, h(<n, walletEPk>), t>
+  let vc = <'vc', wpk, h(<n, sharedKey>), t>
   in
   [ In(senc(<vc, vcSig>, sharedKey)), St_VerRdy($V, walletEPk, sharedKey, n) ]
   --[ Success($V, sharedKey, wpk, n, t)
@@ -75,6 +76,9 @@ rule OID4VP_RECV:
 
 restriction Eq:
     "All a b #t. Eq(a, b) @ #t ==> a = b"
+
+restriction Neq:
+  "All a b #t. Neq(a, b) @ #t ==> not (a = b)"
 
 lemma Exec:
   exists-trace
